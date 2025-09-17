@@ -1,0 +1,44 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.swp
+*.swo
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.env/
+
+# Django
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.coverage
+*.mo
+*.DS_Store
+*.egg-info/
+*.egg
+
+# Django media/uploads
+media/
+staticfiles/
+static/
+
+# PyCharm / VSCode
+.idea/
+.vscode/
+*.code-workspace
+
+# macOS
+.DS_Store
+
+# Backup files
+*.bak
+*.tmp
+
+# Celery / task queues
+celerybeat-schedule
