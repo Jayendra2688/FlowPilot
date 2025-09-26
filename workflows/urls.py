@@ -1,7 +1,11 @@
-from django.urls import path
-from .views import WorkflowListCreateView, WorkflowRetrieveUpdateDestroyView
+from rest_framework.routers import DefaultRouter
+from .views import WorkflowViewSet
+from django.urls import path, include
+
+router = DefaultRouter()
+router.register(r'workflows', WorkflowViewSet, basename='workflow')
 
 urlpatterns = [
-    path("workflows/", WorkflowListCreateView.as_view(), name="workflow-list"),
-    path("workflows/<uuid:id>/", WorkflowRetrieveUpdateDestroyView.as_view(), name="workflow-detail"),
+    path('', include(router.urls)),  
+    
 ]
