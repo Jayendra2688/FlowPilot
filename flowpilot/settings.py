@@ -77,12 +77,53 @@ WSGI_APPLICATION = 'flowpilot.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Redis Configuration (for future Celery setup)
+REDIS_HOST = os.getenv('REDIS_HOST', '127.0.0.1')
+REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+REDIS_DB = os.getenv('REDIS_DB_INDEX', '1')
+
+# Database Configuration - Now using PostgreSQL with Python 3.12!
+if os.getenv('ENV') == 'prod':
+    # Production PostgreSQL configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME'),
+            'USER': os.getenv('DB_USER'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+            'OPTIONS': {
+                'connect_timeout': 10,
+                'options': '-c default_transaction_isolation=serializable'
+            }
+        }
     }
-}
+else:
+    # Development: Use PostgreSQL if available, fallback to SQLite
+    try:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.getenv('DB_NAME', 'flowpilot_db'),
+                'USER': os.getenv('DB_USER', 'flowpilot_user'),
+                'PASSWORD': os.getenv('DB_PASSWORD', 'flowpilot_password'),
+                'HOST': os.getenv('DB_HOST', 'localhost'),
+                'PORT': os.getenv('DB_PORT', '5432'),
+                'OPTIONS': {
+                    'connect_timeout': 10,
+                }
+            }
+        }
+    except Exception:
+        # Fallback to SQLite if PostgreSQL setup fails
+        print("Warning: PostgreSQL not available, using SQLite")
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 
 
 # Password validation
