@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'workflows',
     'rest_framework',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -166,3 +167,51 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ===========================
+# CELERY CONFIGURATION
+# ===========================
+
+# Celery broker URL - Redis database 1 (separate from your other projects)
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+
+# Celery result backend - same as broker for simplicity
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+
+# Celery task serialization
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+# Celery timezone
+CELERY_TIMEZONE = TIME_ZONE
+
+# Celery task routing and execution settings
+CELERY_TASK_ROUTES = {
+    'workflows.tasks.*': {'queue': 'workflows'},  # Route workflow tasks to dedicated queue
+}
+
+# Worker configuration
+CELERY_WORKER_CONCURRENCY = 4  # Number of parallel tasks per worker
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Only take one task at a time (good for long-running tasks)
+
+# Task execution settings
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutes max per task (safety)
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes soft limit (graceful shutdown)
+
+# Task result settings
+CELERY_RESULT_EXPIRES = 3600  # Results expire after 1 hour
+
+# Monitoring and debugging
+CELERY_SEND_TASK_EVENTS = True  # Enable task events for monitoring
+CELERY_WORKER_SEND_TASK_EVENTS = True
+
+# Error handling
+CELERY_TASK_REJECT_ON_WORKER_LOST = True  # Requeue tasks if worker crashes
+
+# Development settings
+if DEBUG:
+    # In development, execute tasks synchronously for easier debugging
+    # Set CELERY_TASK_ALWAYS_EAGER = True to disable async execution
+    CELERY_TASK_ALWAYS_EAGER = False  # Set to True for synchronous execution
+    CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions in eager mode

@@ -121,7 +121,7 @@ class WorkflowStep(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.workflow.name} - Step {self.step_order}: {self.name}"
+        return f"{self.workflow.name} v({self.workflow.version}) - Step {self.step_order}: {self.name}"
     
     def get_dependencies(self):
         """Get all steps this step depends on"""
@@ -158,7 +158,7 @@ class WorkflowExecution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     workflow = models.ForeignKey(
         Workflow,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='executions'
     )
     
