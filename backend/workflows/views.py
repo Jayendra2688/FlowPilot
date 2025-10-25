@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from .models import Workflow
 from .serializers import WorkflowSerializer
 from .executor import execute_workflow
+from django.views.generic import TemplateView
+from rest_framework.views import APIView
 
 class WorkflowViewSet(viewsets.ModelViewSet):
     queryset = Workflow.objects.all()
@@ -17,3 +19,9 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         wf = self.get_object()
         execute_workflow(wf.workflow_json)
         return Response({"status":"executed"})
+    
+class WorkflowAPIView(APIView):
+    
+    def get(self,reqeust):
+        return Response({'message':'Hello Jay,I connected react + django app'})
+        
