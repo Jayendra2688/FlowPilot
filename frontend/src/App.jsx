@@ -5,14 +5,16 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import { Route,Routes,useNavigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
-import ExploreWorkflow from './pages/ExploreWorkflow'
+import ExploreWorkflows from './pages/ExploreWorkflows'
+import ExploreSteps from './pages/ExploreSteps'
 
 function App() {
   return (
     <div className="app-container">
       <Routes>
       <Route path='/' element={<HomePage/>}/>
-      <Route path='/explore' element={<ExploreWorkflow/>}></Route>
+      <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
+      <Route path='/steps/:id' element={<ExploreSteps/>}></Route>
     
       </Routes>
     

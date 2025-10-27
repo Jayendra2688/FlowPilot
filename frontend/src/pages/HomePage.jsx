@@ -6,7 +6,7 @@ function HomePage(){
         <div className="home-page">
             <h1>FlowPilot</h1>
             <p>Workflow Management</p>
-            <button className="explore-workflow" onClick={() => navigate('/explore')}>
+            <button className="explore-workflow" onClick={() => navigate('/workflows')}>
                 Explore Workflow
             </button>
             <button className="create-workflow" onClick={() => navigate('/create')}>

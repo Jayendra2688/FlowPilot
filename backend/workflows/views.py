@@ -24,4 +24,16 @@ class WorkflowAPIView(APIView):
     
     def get(self,reqeust):
         return Response({'message':'Hello Jay,I connected react + django app'})
+    
+class GetWorkflowSteps(APIView):
+    
+    def get(self,req):
+        id = req.GET.get('id')
+        print(id)
+        workflow = Workflow.objects.filter(id=id).last()
+        if not workflow:
+            return Response({"message":"object not found"},status=404)
+        steps = workflow.steps.all()
+        data = [{"id": s.id, "name": s.name} for s in steps]
+        return Response(data)
         

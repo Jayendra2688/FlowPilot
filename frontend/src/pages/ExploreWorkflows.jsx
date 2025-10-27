@@ -1,7 +1,7 @@
 import { Route,Routes,useNavigate } from 'react-router-dom'
 import { useState,useEffect } from 'react';
 
-function ExploreWorkflow(){   
+function ExploreWorkflows(){   
     const navigate = useNavigate();
     const [worlfows,setWorkflow] = useState([{}]);
 
@@ -19,12 +19,15 @@ function ExploreWorkflow(){
     useEffect(function(){
         getWorkflows();
     },[])
+    async function handleClick(id) {
+        navigate(`/steps/${id}`);
+    }
 
     return (
         <div className="explore-workflow-content">
             <h1>Workflows</h1>
             {worlfows.map((workflow,index)=>(
-                <button className="view-workflow" key={index+1}>
+                <button className="view-workflow" key={index+1} onClick={()=> handleClick(workflow.id)}>
                     {index+1}.{workflow.description} (v{workflow.version})
                 </button>
             ))}
@@ -32,5 +35,5 @@ function ExploreWorkflow(){
     )
 }
 
-export default ExploreWorkflow;
+export default ExploreWorkflows;
 
