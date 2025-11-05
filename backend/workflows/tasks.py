@@ -16,7 +16,7 @@ import time
 import traceback
 from typing import Dict, Any, Optional
 
-from ..flowpilot.celery import shared_task
+from celery import shared_task
 from django.utils import timezone
 
 from .models import TaskExecution, WorkflowExecution
@@ -353,5 +353,10 @@ def delay_task(config: Dict[str, Any]) -> Dict[str, Any]:
         'completed_at': timezone.now().isoformat()
     }
 
+@task_registry.register('display_for_test')
+def display_testing(input_data):
+    msg = input_data.get("message","empty")
+    print(f"***{msg}***")
+    
 # Log all registered tasks on module load
 logger.info(f"Registered tasks: {task_registry.list_tasks()}")
