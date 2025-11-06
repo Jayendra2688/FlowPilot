@@ -40,4 +40,9 @@ for px in range(width):
 img.save("mandelbrot_basic.png")
 print("Mandelbrot fractal saved as mandelbrot_basic.png")
 
+from celery import shared_task
+
+@shared_task
+def 
+
 
