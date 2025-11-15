@@ -4,11 +4,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Workflow
-from .serializers import WorkflowSerializer
+from .serializers import WorkflowSerializer,ExecuteSerializer
 from .executor import execute_workflow
 from django.views.generic import TemplateView
 from rest_framework.views import APIView
-
+from .orchestrator import Orchestrator
 class WorkflowViewSet(viewsets.ModelViewSet):
     queryset = Workflow.objects.all()
     serializer_class = WorkflowSerializer
@@ -36,4 +36,20 @@ class GetWorkflowSteps(APIView):
         steps = workflow.steps.all()
         data = [{"id": s.id, "name": s.name} for s in steps]
         return Response(data)
+
+class ExecuteWorkflow(APIView):
+    
+    def post(self,request,*args,**kwargs):
+        workflow_id = kwargs["workflow_id"]
+        input_data = request.data.get("input_data",{})
+        workflow_id = kwargs["workflow_id"]
+        serializer = ExecuteSerializer(data={"input_data":input_data,"workflow_id":workflow_id})
+        serializer.is_valid(raise_exception=True)
+        input_data = serializer.validated_data["input_data"]
+        workflow_id = serializer.validated_data["workflow_id"]
+        print("work",workflow_id)
+        orchestrator =  Orchestrator(workflow_id)
+        workflow_exe_id = orchestrator.execute(input_data)
+        return Response({"message":"success","workflow_exe_id":workflow_exe_id})
+        
         
