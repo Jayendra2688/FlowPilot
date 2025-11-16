@@ -34,7 +34,7 @@ class GetWorkflowSteps(APIView):
         if not workflow:
             return Response({"message":"object not found"},status=404)
         steps = workflow.steps.all()
-        data = [{"id": s.id, "name": s.name} for s in steps]
+        data = [{"id": s.id, "name": s.name,"step_type":s.step_type} for s in steps]
         return Response(data)
 
 class ExecuteWorkflow(APIView):

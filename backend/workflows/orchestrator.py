@@ -25,13 +25,14 @@ class Orchestrator:
             #create a taskexecution for each step
             #check the step has depended on others
             
-            if not step.depends_on:
+            if not step.get_dependencies():
                 #this step may be the first step
                 task_exe = TaskExecution.objects.create(
                     workflow_execution = workflow_execution,
                     step = step,
                     input_data = input_data
                     )
+                print("execute_workflow_task",task_exe.id)
                 execute_workflow_task.delay(task_exe.id)
             else:
                 #input of these steps is output of other dependent steps
