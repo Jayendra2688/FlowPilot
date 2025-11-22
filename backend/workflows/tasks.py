@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional
 
 from celery import shared_task
 from django.utils import timezone
-
+import requests
 from .models import TaskExecution, WorkflowExecution
 
 # Configure logging
@@ -364,3 +364,71 @@ def display_testing(input_data):
     
 # Log all registered tasks on module load
 logger.info(f"Registered tasks: {task_registry.list_tasks()}")
+
+def get_response(res: requests.Response):
+    result = {}
+
+    if res.ok:
+        try:
+            data = res.json()
+        except ValueError:
+            data = res.text
+
+        result["status"] = "Success"
+        result["data"] = data
+        return result
+
+    # Error case
+    try:
+        error = res.json()
+    except ValueError:
+        error = res.text
+
+    result["status"] = "Failed"
+    result["status_code"] = res.status_code
+    result["error"] = error
+    return result
+
+
+@task_registry.register('api_call')
+def fetch_from_api(input_data : dict):
+    if "url" not in input_data:
+        return {
+            "status":"Failed",
+            "message":"Not found url"
+        }
+    if "method" not in input_data:
+        return {
+            "status":"Failed",
+            "message":"Not found Api Method"
+        }
+    url = input_data["method"]
+    res = {}
+    if input_data["method"] == "GET":
+        params = input_data.get("params",{})
+        headers = input_data.get("headers",{})
+        res = requests.get(url=url,params=params,headers=headers)
+        res = get_response(res)
+    elif input_data["method"]=="POST":
+        payload = input_data.get("payload",{})
+        headers = input_data.get("headers",{})
+        res = requests.post(url=url,payload=payload,headers=headers)
+        res = get_response(res)
+    return res
+
+
+@task_registry.register('get_to_do_title')
+def get_todo_title(input_data : dict):
+    
+    if not title is None:
+        title = input_data.get("body",{}).get("title",None)
+        if not title is None:
+            return {
+                "status":"Success",
+                "title" : title
+            }
+        else:
+            return {
+                "message"
+            }
+    
