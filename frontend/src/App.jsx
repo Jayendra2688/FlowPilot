@@ -7,19 +7,19 @@ import { Route,Routes,useNavigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import ExploreWorkflows from './pages/ExploreWorkflows'
 import ExploreSteps from './pages/ExploreSteps'
+import DisplaySteps from './ReactPractive'
 
 function App() {
-  return (
-    <div className="app-container">
-      <Routes>
-      <Route path='/' element={<HomePage/>}/>
-      <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
-      <Route path='/steps/:id' element={<ExploreSteps/>}></Route>
+  // return (
+  //   <div className="app-container">
+  //     <Routes>
+  //     <Route path='/' element={<HomePage/>}/>
+  //     <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
+  //     <Route path='/steps/:id' element={<ExploreSteps/>}></Route>
+  //     </Routes>
     
-      </Routes>
-    
-    </div>
-  )
+  //   </div>
+  return <DisplaySteps/>;
 }
 
 export default App

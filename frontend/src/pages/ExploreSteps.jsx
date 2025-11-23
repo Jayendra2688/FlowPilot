@@ -27,7 +27,21 @@ export default function ExploreSteps(){
     },[id]);
 
     return (
-        <p>{JSON.stringify(data, null, 2)}</p>
+       <div>
+        <h2>Steps</h2>
+        
+         {data && data.map(step=>
+             (
+            <div key={step.id}>
+                <p>Name :{step.name}</p>
+                <p>Step Type:{step.step_type}</p>
+            </div>
+            )
+         )}
+
+         <button>Execute</button>
+    
+       </div>
     )
 
 }
