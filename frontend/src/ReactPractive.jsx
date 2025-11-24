@@ -1,5 +1,7 @@
 import { useState } from "react";
-
+function Arrow(){
+    return <div>-></div>;
+}
 function DisplaySteps(){
     const [steps,setSteps] = useState([
         {"step_id":1,"step_name":"Hello","active":true},
@@ -19,18 +21,22 @@ function DisplaySteps(){
         setSteps(newSteps);
     }
     return (
-        <>
-        {steps.map(step => (
-            <div>
-                <button key={step.step_id} onClick={() => handleClick(step.step_id)}
-                    className={`px-4 py-2 rounded font-semibold ${
-                    step.active ? "bg-green-500 text-white" : "bg-gray-300 text-black"
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center bg-grid">
+        <div className="flex items-center space-x-4">
+        {steps.map((step,idx) => (
+            <div className="flex items-center space-x-4">
+                <div key={step.step_id} onClick={() => handleClick(step.step_id)}
+                    className={`px-4 py-2 mx-2 my-2 rounded font-semibold ${
+                    step.active ? "bg-green-400 text-white" : "bg-gray-300 text-black"
                     }`}>
-                {step.step_name} {step.active ? "True" : "False"}
-                </button>
+                    <p>{step.step_id}.</p>
+                    <p>{step.step_name}</p>
+                </div>
+                {idx!=steps.length-1 && <Arrow/>}
             </div>
         ))}
-        </>
+        </div>
+        </div>
     )
 }
 export default DisplaySteps;

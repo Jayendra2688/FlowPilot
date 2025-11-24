@@ -1,7 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+/* 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -69,4 +69,23 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+} */
+
+.bg-grid {
+  background-color: #ffffff; /* base color */
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      #e0e0e0,
+      #e0e0e0 1px,
+      transparent 1px,
+      transparent 20px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #e0e0e0,
+      #e0e0e0 1px,
+      transparent 1px,
+      transparent 20px
+    );
 }
