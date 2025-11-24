@@ -3,33 +3,36 @@ from .models import WorkflowExecution,Workflow,WorkflowStep,TaskExecution
 from .tasks import execute_workflow_task
 class Orchestrator:
     def __init__(self,workflow_id,input_data=None):
+        self.workflow_id = workflow_id
         pass
     
-    def execute(self,workflow_id,input_data=None):
+    def execute(self,input_data=None):
         #create a workflow_execution with input_data
         #create TaskExecutions too
         #and triggers the no depenedent steps
         #how to find non dependednt steps
-        workfow = Workflow.objects.filter(id = workflow_id).last()
-        if not workfow:
+        workflow = Workflow.objects.filter(id = self.workflow_id).last()
+        print(self.workflow_id)
+        if not workflow:
             raise Exception("Workflow Not found")
         workflow_execution = WorkflowExecution.objects.create(
-            workfow = workfow,
+            workflow = workflow,
             input_data = input_data
         )
         workflow_execution.mark_as_started()
         
-        for step in workfow.steps.all():
+        for step in workflow.steps.all():
             #create a taskexecution for each step
             #check the step has depended on others
             
-            if not step.depdepends_on:
+            if not step.get_dependencies():
                 #this step may be the first step
                 task_exe = TaskExecution.objects.create(
                     workflow_execution = workflow_execution,
                     step = step,
                     input_data = input_data
                     )
+                print("execute_workflow_task",task_exe.id)
                 execute_workflow_task.delay(task_exe.id)
             else:
                 #input of these steps is output of other dependent steps
@@ -37,6 +40,7 @@ class Orchestrator:
                     workflow_execution = workflow_execution,
                     step = step
                 )
+        return workflow_execution.id
                 
     def is_all_tasks_exections_completed(self,wokflow_executon_id,step_ids=None):
         try:

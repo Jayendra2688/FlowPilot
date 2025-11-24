@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional
 
 from celery import shared_task
 from django.utils import timezone
-
+import requests
 from .models import TaskExecution, WorkflowExecution
 
 # Configure logging
@@ -186,28 +186,29 @@ def send_sms_task(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict: Result with SMS ID and delivery status
     """
-    phone = config.get('phone')
-    message = config.get('message')
+    # phone = config.get('phone')
+    # message = config.get('message')
     
-    if not phone or not message:
-        raise ValueError("SMS task requires 'phone' and 'message' in config")
+    # if not phone or not message:
+    #     raise ValueError("SMS task requires 'phone' and 'message' in config")
     
-    logger.info(f"Sending SMS to {phone}: {message}")
+    # logger.info(f"Sending SMS to {phone}: {message}")
     
-    # Simulate SMS sending (replace with actual SMS service integration)
-    time.sleep(2)  # Simulate network delay
+    # # Simulate SMS sending (replace with actual SMS service integration)
+    # time.sleep(2)  # Simulate network delay
     
-    # TODO: Integrate with actual SMS service (Twilio, AWS SNS, etc.)
-    sms_id = f"sms_{int(time.time())}"
+    # # TODO: Integrate with actual SMS service (Twilio, AWS SNS, etc.)
+    # sms_id = f"sms_{int(time.time())}"
     
-    return {
-        'sms_sent': True,
-        'sms_id': sms_id,
-        'phone': phone,
-        'message': message,
-        'sent_at': timezone.now().isoformat(),
-        'cost': 0.05  # Mock cost
-    }
+    # return {
+    #     'sms_sent': True,
+    #     'sms_id': sms_id,
+    #     'phone': phone,
+    #     'message': message,
+    #     'sent_at': timezone.now().isoformat(),
+    #     'cost': 0.05  # Mock cost
+    # }
+    print("send_sms_bro")
 
 @task_registry.register('send_email')
 def send_email_task(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -220,31 +221,32 @@ def send_email_task(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict: Result with email delivery status
     """
-    email = config.get('email')
-    subject = config.get('subject', 'FlowPilot Notification')
-    content = config.get('content') or config.get('message')
-    template = config.get('template')
+    # email = config.get('email')
+    # subject = config.get('subject', 'FlowPilot Notification')
+    # content = config.get('content') or config.get('message')
+    # template = config.get('template')
     
-    if not email:
-        raise ValueError("Email task requires 'email' in config")
+    # if not email:
+    #     raise ValueError("Email task requires 'email' in config")
     
-    if not content and not template:
-        raise ValueError("Email task requires 'content' or 'template' in config")
+    # if not content and not template:
+    #     raise ValueError("Email task requires 'content' or 'template' in config")
     
-    logger.info(f"Sending email to {email}: {subject}")
+    # logger.info(f"Sending email to {email}: {subject}")
     
-    # Simulate email sending
-    time.sleep(1)
+    # # Simulate email sending
+    # time.sleep(1)
     
-    # TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
+    # # TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
     
-    return {
-        'email_sent': True,
-        'email': email,
-        'subject': subject,
-        'sent_at': timezone.now().isoformat(),
-        'message_id': f"email_{int(time.time())}"
-    }
+    # return {
+    #     'email_sent': True,
+    #     'email': email,
+    #     'subject': subject,
+    #     'sent_at': timezone.now().isoformat(),
+    #     'message_id': f"email_{int(time.time())}"
+    # }
+    print("send_email_bro")
 
 @task_registry.register('create_patient')
 def create_patient_task(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -257,29 +259,31 @@ def create_patient_task(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict: Created patient information with ID
     """
-    name = config.get('name')
-    phone = config.get('phone')
-    email = config.get('email')
+    # name = config.get('name')
+    # phone = config.get('phone')
+    # email = config.get('email')
     
-    if not name:
-        raise ValueError("Patient creation requires 'name' in config")
+    # if not name:
+    #     raise ValueError("Patient creation requires 'name' in config")
     
-    logger.info(f"Creating patient record for {name}")
+    # logger.info(f"Creating patient record for {name}")
     
-    # Simulate database operation
-    time.sleep(1)
+    # # Simulate database operation
+    # time.sleep(1)
     
-    # TODO: Integrate with actual patient management system
-    patient_id = int(time.time())  # Mock patient ID
+    # # TODO: Integrate with actual patient management system
+    # patient_id = int(time.time())  # Mock patient ID
     
-    return {
-        'patient_created': True,
-        'patient_id': patient_id,
-        'name': name,
-        'phone': phone,
-        'email': email,
-        'created_at': timezone.now().isoformat()
-    }
+    # return {
+    #     'patient_created': True,
+    #     'patient_id': patient_id,
+    #     'name': name,
+    #     'phone': phone,
+    #     'email': email,
+    #     'created_at': timezone.now().isoformat()
+    # }
+    print("create_patient_bro")
+    
 
 @task_registry.register('http_request')
 def http_request_task(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -360,3 +364,71 @@ def display_testing(input_data):
     
 # Log all registered tasks on module load
 logger.info(f"Registered tasks: {task_registry.list_tasks()}")
+
+def get_response(res: requests.Response):
+    result = {}
+
+    if res.ok:
+        try:
+            data = res.json()
+        except ValueError:
+            data = res.text
+
+        result["status"] = "Success"
+        result["data"] = data
+        return result
+
+    # Error case
+    try:
+        error = res.json()
+    except ValueError:
+        error = res.text
+
+    result["status"] = "Failed"
+    result["status_code"] = res.status_code
+    result["error"] = error
+    return result
+
+
+@task_registry.register('api_call')
+def fetch_from_api(input_data : dict):
+    if "url" not in input_data:
+        return {
+            "status":"Failed",
+            "message":"Not found url"
+        }
+    if "method" not in input_data:
+        return {
+            "status":"Failed",
+            "message":"Not found Api Method"
+        }
+    url = input_data["method"]
+    res = {}
+    if input_data["method"] == "GET":
+        params = input_data.get("params",{})
+        headers = input_data.get("headers",{})
+        res = requests.get(url=url,params=params,headers=headers)
+        res = get_response(res)
+    elif input_data["method"]=="POST":
+        payload = input_data.get("payload",{})
+        headers = input_data.get("headers",{})
+        res = requests.post(url=url,payload=payload,headers=headers)
+        res = get_response(res)
+    return res
+
+
+@task_registry.register('get_to_do_title')
+def get_todo_title(input_data : dict):
+    
+    if not title is None:
+        title = input_data.get("body",{}).get("title",None)
+        if not title is None:
+            return {
+                "status":"Success",
+                "title" : title
+            }
+        else:
+            return {
+                "message"
+            }
+    
