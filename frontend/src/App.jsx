@@ -10,16 +10,17 @@ import ExploreSteps from './pages/ExploreSteps'
 import DisplaySteps from './ReactPractive'
 
 function App() {
-  // return (
-  //   <div className="app-container">
-  //     <Routes>
-  //     <Route path='/' element={<HomePage/>}/>
-  //     <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
-  //     <Route path='/steps/:id' element={<ExploreSteps/>}></Route>
-  //     </Routes>
+  return (
+    <div className="app-container">
+      <Routes>
+      <Route path='/' element={<HomePage/>}/>
+      <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
+      <Route path='/steps/:workflow_id' element={<ExploreSteps/>}></Route>
+      </Routes>
     
-  //   </div>
-  return <DisplaySteps/>;
+    </div>
+  )
+  // return <DisplaySteps/>;
 }
 
 export default App

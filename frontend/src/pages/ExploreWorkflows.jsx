@@ -24,13 +24,15 @@ function ExploreWorkflows(){
     }
 
     return (
-        <div className="explore-workflow-content">
-            <h1>Workflows</h1>
+        <div className='page-style flex flex-col'>
+        <h1 className='main-header text-5xl'>Workflows</h1>
+            <div className="flex flex-col">
             {worlfows.map((workflow,index)=>(
-                <button className="view-workflow" key={index+1} onClick={()=> handleClick(workflow.id)}>
-                    {index+1}.{workflow.description} (v{workflow.version})
-                </button>
+                <div className="btn-primary hover:scale-105" key={index+1} onClick={()=> handleClick(workflow.id)}>
+                    {index+1}.{workflow.name} {"v{" + workflow.version + "}"}
+                </div>
             ))}
+        </div>
         </div>
     )
 }

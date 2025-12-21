@@ -1,6 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 mx-2 my-2 rounded font-semibold shadow-md bg-green-500 hover:bg-green-400 transition hover:scale-110;
+  }
+  .main-header{
+    @apply text-6xl font-bold text-gray-800 mb-2;
+  }
+  .page-style{
+    @apply min-h-screen bg-gray-100 flex items-center justify-center bg-grid ;
+  }
+
+  .card {
+    @apply p-6 bg-white rounded-xl shadow-md;
+  }
+
+  .canvas-bg {
+    @apply min-h-screen bg-gray-100;
+  }
+}
+
 /* 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;

@@ -64,6 +64,7 @@ task_registry = TaskRegistry()
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
 def execute_workflow_task(self, task_execution_id: str):
+    print("HelloExe")
     """
     Core Celery task that executes a single workflow step
     
@@ -357,8 +358,9 @@ def delay_task(config: Dict[str, Any]) -> Dict[str, Any]:
         'completed_at': timezone.now().isoformat()
     }
 
-@task_registry.register('display_for_test')
+@task_registry.register('display_msg')
 def display_testing(input_data):
+    time.sleep(2)
     msg = input_data.get("message","empty")
     print(f"***{msg}***")
     

@@ -20,11 +20,11 @@ class Orchestrator:
             input_data = input_data
         )
         workflow_execution.mark_as_started()
-        
+        step_map = {}
         for step in workflow.steps.all():
             #create a taskexecution for each step
             #check the step has depended on others
-            
+            task_exe = None
             if not step.get_dependencies():
                 #this step may be the first step
                 task_exe = TaskExecution.objects.create(
@@ -33,14 +33,24 @@ class Orchestrator:
                     input_data = input_data
                     )
                 print("execute_workflow_task",task_exe.id)
-                execute_workflow_task.delay(task_exe.id)
+                print("TASK APP:", execute_workflow_task.app)
+                print("DEFAULT QUEUE:", execute_workflow_task.app.conf.task_default_queue)
+                print("BROKER:", execute_workflow_task.app.conf.broker_url)
+                res = execute_workflow_task.apply_async(
+                        args=[task_exe.id],
+                        queue="workflows",
+                        exchange="workflows",
+                        routing_key="workflows",
+                    )
+                print("celery async result", res.id)
             else:
                 #input of these steps is output of other dependent steps
                 task_exe = TaskExecution.objects.create(
                     workflow_execution = workflow_execution,
                     step = step
                 )
-        return workflow_execution.id
+            step_map[str(step.id)] = str(task_exe.id)
+        return {"workflow":str(workflow_execution.id),"steps":step_map}
                 
     def is_all_tasks_exections_completed(self,wokflow_executon_id,step_ids=None):
         try:

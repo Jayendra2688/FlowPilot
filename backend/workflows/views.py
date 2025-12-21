@@ -3,12 +3,13 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Workflow
+from .models import Workflow,WorkflowExecution,TaskExecution
 from .serializers import WorkflowSerializer,ExecuteSerializer
 from .executor import execute_workflow
 from django.views.generic import TemplateView
 from rest_framework.views import APIView
 from .orchestrator import Orchestrator
+from .utils import get_levelwise_steps
 class WorkflowViewSet(viewsets.ModelViewSet):
     queryset = Workflow.objects.all()
     serializer_class = WorkflowSerializer
@@ -25,17 +26,37 @@ class WorkflowAPIView(APIView):
     def get(self,reqeust):
         return Response({'message':'Hello Jay,I connected react + django app'})
     
-class GetWorkflowSteps(APIView):
+class GetWorkflowSteps(APIView):    
     
     def get(self,req):
         id = req.GET.get('id')
-        print(id)
         workflow = Workflow.objects.filter(id=id).last()
         if not workflow:
             return Response({"message":"object not found"},status=404)
         steps = workflow.steps.all()
-        data = [{"id": s.id, "name": s.name,"step_type":s.step_type,"step_order":s.step_order} for s in steps]
-        return Response(data)
+        data = [{"id": s.id, "name": s.name,"step_type":s.step_type,"step_order":s.step_order,"depends_on":[d.id for d in s.depends_on.all()]} for s in steps]
+        levels = get_levelwise_steps(data)
+        return Response(levels)
+
+class GetStateAPI(APIView):
+    
+    def get(self,request,*args,**kwargs):
+        entity_type = kwargs["entity_type"]
+        id = kwargs["id"]
+        if not entity_type in ["workflow","step"]:
+            return Response({"status":"failed","message":"Invalid Entity Type"},status=404)
+        
+        if entity_type=='workflow':
+            workflow_exe = WorkflowExecution.objects.filter(id=id).first()
+            if not workflow_exe:
+                return Response({"status":"failed","message":"Workflow Excecution Not Found"},status=404)
+            return Response({"status":"success","entity_status":workflow_exe.status},status=200)
+        else:
+            task_exe = TaskExecution.objects.filter(id=id).first()
+            if not task_exe:
+                return Response({"status":"failed","message":"Task Execution Not Found"},status=404)
+            return Response({"status":"success","entity_status":task_exe.status},status=200)
+                
 
 class ExecuteWorkflow(APIView):
     
@@ -49,7 +70,7 @@ class ExecuteWorkflow(APIView):
         workflow_id = serializer.validated_data["workflow_id"]
         print("work",workflow_id)
         orchestrator =  Orchestrator(workflow_id)
-        workflow_exe_id = orchestrator.execute(input_data)
-        return Response({"message":"success","workflow_exe_id":workflow_exe_id})
+        result = orchestrator.execute(input_data)
+        return Response({"message":"success","result":result})
         
         

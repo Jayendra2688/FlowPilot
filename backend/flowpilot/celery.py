@@ -22,6 +22,22 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Auto-discover tasks from all installed apps
 # This looks for tasks.py files in each Django app
 app.autodiscover_tasks()
+from kombu import Exchange, Queue
+
+# Explicit queue + exchange declaration
+app.conf.task_queues = (
+    Queue(
+        "workflows",
+        Exchange("workflows", type="direct"),
+        routing_key="workflows",
+    ),
+)
+
+# Make workflows the default execution lane
+app.conf.task_default_queue = "workflows"
+app.conf.task_default_exchange = "workflows"
+app.conf.task_default_exchange_type = "direct"
+app.conf.task_default_routing_key = "workflows"
 
 # Optional: Add debug task for testing
 @app.task(bind=True)
