@@ -72,5 +72,33 @@ class ExecuteWorkflow(APIView):
         orchestrator =  Orchestrator(workflow_id)
         result = orchestrator.execute(input_data)
         return Response({"message":"success","result":result})
+
+class LatestExectuion(APIView):
+    
+    def get(self,reqeust,*args,**kwargs):
+        workflow_id = kwargs["workflow_id"]
+        result = {
+            "workflow":None,
+            "steps":{},
+        }
+        if not Workflow.objects.filter(id=workflow_id).first():
+            return Response({"message":"failed","result":"workflow not found"})
+        
+        latest_workflow_exe = WorkflowExecution.objects.filter(workflow_id=workflow_id).order_by('-created_at').first()
+        
+        if not latest_workflow_exe:
+            return Response({"message":"success","result":result})
+        else:
+            task_exes = TaskExecution.objects.filter(workflow_execution = latest_workflow_exe)
+            step_status = {}
+            for task_exe in task_exes:
+                step_status[str(task_exe.step.id)] = str(task_exe.status)
+            
+            result.update({
+                "workflow":latest_workflow_exe.status,
+                "steps":step_status
+            })
+            return Response({"message":"success","result":result})
+        
         
         

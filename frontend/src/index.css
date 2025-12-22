@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 @layer components {
+  .btn-base{
+    @apply px-4 py-2 mx-2 my-2 rounded font-semibold shadow-md transition hover:scale-110;
+  }
   .btn-primary {
     @apply px-4 py-2 mx-2 my-2 rounded font-semibold shadow-md bg-green-500 hover:bg-green-400 transition hover:scale-110;
   }

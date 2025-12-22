@@ -1,29 +1,41 @@
 import { Route,useNavigate,Router } from "react-router-dom";
 import { useState,useEffect } from 'react';
 import { useParams } from "react-router-dom";
-function Step({step}){
+function Step({step,status}){
+    console.log("Status ",status);
     return (
-    <div className={`btn-primary`}>
+    <div className={`btn-base ${getStepColor(status)}`}>
         {step.step_type.replace(/_/g, " ")
             .replace(/\b\w/g, c => c.toUpperCase())
         }
     </div>
     )
 }
-function getStepColor(step){
-    if(step.state=='pending'){
-        return "bg-grey-500 hover:bg-grey-400";
-    }else if(step.state=='running'){
+function getStepColor(status){
+    if(status=='pending'){
+        return "bg-gray-500 hover:bg-gray-400";
+    }else if(status=='running'){
         return "bg-blue-500 hover:bg-blue-400";
-    }else if(step.state=='completed'){
+    }else if(status=='completed'){
         return "bg-green-500 hover:bg-green-400";
     }else
         return "bg-red-500 hover:bg-red-400";
 }
 
+function readyToRun(stepStatusMap){
+    if(!stepStatusMap) return false;
+    if(Object.keys(stepStatusMap).length==0) return true;
+    if(Object.values(stepStatusMap).every(status => status==="completed")) return true;
+    return false;
 
-function Execute({workflow_id,setWorkflowExeId,setStepExeMap}){
+}
+
+function Execute({workflow_id,setWorkflowExeId,setStepExeMap,stepStatusMap}){
+    
     async function handleClink(workflow_id) {
+        if(!readyToRun(stepStatusMap)){
+        alert("Not Ready To Run!!");
+    }
         try{
             const res = await fetch(`http://127.0.0.1:8001/api/execute-workflow/${workflow_id}/`, {
                             method: "POST",
@@ -58,7 +70,7 @@ export default function ExploreSteps(){
     const [worflowExeId,setWorkflowExeId] = useState(null);
     const [workflowState,setWorkflowState] = useState(null);
     const [stepExeMap,setStepExeMap] = useState({});
-    const [stepStatusMap,setStepStatusMap] = useState({});
+    const [stepStatusMap,setStepStatusMap] = useState(null);
 
     
     useEffect(function(){
@@ -122,15 +134,12 @@ export default function ExploreSteps(){
 
         pollSteps();
 
-        const id = setInterval(pollSteps,12250);
+        const id = setInterval(pollSteps,250);
         return ()=>{
             clearInterval(id);
         };
 
     },[stepExeMap]);
-    useEffect(() => {
-  console.log("stepStatusMap updated:", stepStatusMap);
-}, [stepStatusMap]);
 
     useEffect(function(){
 
@@ -139,13 +148,32 @@ export default function ExploreSteps(){
                 const res = await fetch(`http://127.0.0.1:8001/api/steps/?id=${workflow_id}`);
                 if(!res.ok) throw Error(`HTTP ${res.status}`);
                 const body = await res.json();
+                console.log("bod ",body);
                 setData(body);
             }catch(err){
                 console.log("Error: ",err);
             }
             
         }
+        async function fetchLatestExectution() {
+            try{
+                const res = await fetch(`http://127.0.0.1:8001/api/latest-execution/${workflow_id}`);
+                if(!res.ok) throw Error(`HTTP ${res.status}`);
+                const body = await res.json();
+                if(body["result"]){
+                    setWorkflowState(body["result"]["workflow"]);
+                    setStepStatusMap(body["result"]["steps"]);
+                }else{
+                    setWorkflowState(null);
+                    setStepStatusMap({});
+                }
+            }catch(err){
+                console.log("Error: ",err);
+            }
+            
+        }
         fetchStep();
+        fetchLatestExectution();
     },[workflow_id]);
 
     return (
@@ -155,13 +183,13 @@ export default function ExploreSteps(){
                 {data && data.map(level => (
                     <div key={level.id} className="flex flex-col">
                         {level.steps.map(step => (
-                            <Step key={step.id} step={step} state={step.state}/>
+                            <Step key={step.id} step={step} status={stepStatusMap?.[step.id] ?? "pending"}/>
                         ))}
                     </div>
                     
                 ))}
             </div>
-            <Execute workflow_id={workflow_id} setWorkflowExeId = {setWorkflowExeId} setStepExeMap = {setStepExeMap}/>
+            <Execute workflow_id={workflow_id} setWorkflowExeId = {setWorkflowExeId} setStepExeMap = {setStepExeMap} stepStatusMap = {stepStatusMap}/>
         </div>
     )
 
