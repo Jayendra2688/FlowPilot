@@ -1,6 +1,7 @@
 import random
 import time
 from twilio.rest import Client
+import os
 ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOEKN")
 
