@@ -34,8 +34,9 @@ function Execute({workflow_id,setWorkflowExeId,setStepExeMap,stepStatusMap}){
     
     async function handleClink(workflow_id) {
         if(!readyToRun(stepStatusMap)){
-        alert("Not Ready To Run!!");
-    }
+            alert("Not Ready To Run!!");
+            return;
+        }
         try{
             const res = await fetch(`http://127.0.0.1:8001/api/execute-workflow/${workflow_id}/`, {
                             method: "POST",
@@ -62,6 +63,57 @@ function Execute({workflow_id,setWorkflowExeId,setStepExeMap,stepStatusMap}){
         </div>
     )
 }
+
+function ExecutionHistory({workflow_id,setExeHistory,setDrawerOpen,drawerOpen}){
+    async function getHistory(workflow_id) {
+        try{
+            const res = await fetch(`http://127.0.0.1:8001/api/execution-history/${workflow_id}`);
+            if(!res.ok){
+                throw new Error(`Request failed Error HTTP${res.status}`);
+            }
+            const body = await res.json();
+            console.log("exe his");
+            console.log(body);
+            setExeHistory(body["result"]);
+            setDrawerOpen(!drawerOpen);
+
+        }catch(error){
+            console.error("failed:",error);
+        }
+    }
+    return (
+        <div className="btn-primary bg-blue-500 hover:bg-blue-400" onClick={() => getHistory(workflow_id)}>
+            <span>History</span>
+        </div>
+    )
+}
+function HistoryTable({ exeHistory }) {
+console.log("exeeehis");
+  return (
+    <div>
+      <table className="table-auto">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {exeHistory?.map((entry, id) => (
+            <tr key={id}>
+              <td>{id}</td>
+              <td>{entry.date_time}</td>
+              <td>{entry.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function ExploreSteps(){
     const {workflow_id} = useParams();
     console.log("workflow_id is ",workflow_id);
@@ -71,6 +123,9 @@ export default function ExploreSteps(){
     const [workflowState,setWorkflowState] = useState(null);
     const [stepExeMap,setStepExeMap] = useState({});
     const [stepStatusMap,setStepStatusMap] = useState(null);
+    const [exeHistory,setExeHistory] = useState([]);
+    const [drawerOpen,setDrawerOpen] = useState(false);
+
 
     
     useEffect(function(){
@@ -177,7 +232,8 @@ export default function ExploreSteps(){
     },[workflow_id]);
 
     return (
-        <div className="page-style flex-col gap-5">
+        <div className="flex w-full">
+        <div className={`page-style flex-col gap-5 p-10 transition-all duration-500 ${drawerOpen ? "w-3/4" : "w-full" }`}>
             <h2 className="main-header text-4xl">Steps</h2>
             <div className="flex gap-10">
                 {data && data.map(level => (
@@ -189,7 +245,16 @@ export default function ExploreSteps(){
                     
                 ))}
             </div>
-            <Execute workflow_id={workflow_id} setWorkflowExeId = {setWorkflowExeId} setStepExeMap = {setStepExeMap} stepStatusMap = {stepStatusMap}/>
+            <div className="flex justify-center items-center gap-10 p-5">
+                <Execute workflow_id={workflow_id} setWorkflowExeId = {setWorkflowExeId} setStepExeMap = {setStepExeMap} stepStatusMap = {stepStatusMap}/>
+                <ExecutionHistory workflow_id={workflow_id} setExeHistory={setExeHistory} setDrawerOpen={setDrawerOpen} drawerOpen={drawerOpen}/>
+            </div>
+        </div>
+       {<div
+            className={`flex justify-center items-center transition-all duration-500 ${drawerOpen ? "w-1/4" : "w-0 hidden" }`}
+        > 
+            <HistoryTable exeHistory={exeHistory}/>
+        </div>}
         </div>
     )
 

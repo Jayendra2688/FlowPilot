@@ -8,15 +8,18 @@ import HomePage from './pages/HomePage'
 import ExploreWorkflows from './pages/ExploreWorkflows'
 import ExploreSteps from './pages/ExploreSteps'
 import DisplaySteps from './ReactPractive'
-
+import Demo from './pages/Demo';
+import CreateWorkflow from './pages/CreateWorkflow';
 function App() {
   return (
     <div className="app-container">
       <Routes>
-      <Route path='/' element={<HomePage/>}/>
-      <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
-      <Route path='/steps/:workflow_id' element={<ExploreSteps/>}></Route>
+        <Route path='/' element={<HomePage/>}/>
+        <Route path='/workflows' element={<ExploreWorkflows/>}></Route>
+        <Route path='/steps/:workflow_id' element={<ExploreSteps/>}></Route>
+        <Route path='/create' element={<CreateWorkflow/>}></Route>
       </Routes>
+      {/* <Demo/> */}
     
     </div>
   )

@@ -218,3 +218,6 @@ if DEBUG:
     # Set CELERY_TASK_ALWAYS_EAGER = True to disable async execution
     CELERY_TASK_ALWAYS_EAGER = False  # Set to True for synchronous execution
     CELERY_TASK_EAGER_PROPAGATES = True  # Propagate exceptions in eager mode
+
+USE_TZ = True
+TIME_ZONE = "UTC"

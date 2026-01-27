@@ -433,4 +433,8 @@ def get_todo_title(input_data : dict):
             return {
                 "message"
             }
-    
+        
+from .send_otp import send_otp   
+@task_registry.register('send_test_otp')
+def send_test_otp(input_data : dict):
+    send_otp("6303827428")

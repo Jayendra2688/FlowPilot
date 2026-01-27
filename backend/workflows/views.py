@@ -2,6 +2,9 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.utils import timezone
+import pytz
+
 
 from .models import Workflow,WorkflowExecution,TaskExecution
 from .serializers import WorkflowSerializer,ExecuteSerializer
@@ -10,6 +13,9 @@ from django.views.generic import TemplateView
 from rest_framework.views import APIView
 from .orchestrator import Orchestrator
 from .utils import get_levelwise_steps
+
+ist = pytz.timezone("Asia/Kolkata")
+
 class WorkflowViewSet(viewsets.ModelViewSet):
     queryset = Workflow.objects.all()
     serializer_class = WorkflowSerializer
@@ -101,4 +107,24 @@ class LatestExectuion(APIView):
             return Response({"message":"success","result":result})
         
         
+class ExecutionHistoryAPI(APIView):
+    
+    def get(self,reqeust,*args,**kwargs):
+        workflow_id = kwargs.get("workflow_id",None)
+        execution_history = []
+    
         
+        if workflow_id and Workflow.objects.filter(id=workflow_id).exists():
+            wordklow_exes = WorkflowExecution.objects.filter(workflow=workflow_id)
+            for exe in wordklow_exes:
+                ist_time = timezone.localtime(exe.created_at, ist)
+                formatted = ist_time.strftime("%d-%m-%Y %I:%M:%S %p")
+                execution_history.append({
+                    "id":str(exe.id),
+                    "date_time":formatted,
+                    "status":exe.status,
+                })
+        else:
+            return Response({"message":"failed","result":"workflow not found"},status=404)
+        
+        return Response({"mesasage":"success","result":execution_history})

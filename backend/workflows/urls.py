@@ -1,7 +1,7 @@
 from rest_framework.routers import DefaultRouter
 from .views import WorkflowViewSet
 from django.urls import path, include
-from .views import WorkflowAPIView,GetWorkflowSteps,ExecuteWorkflow,GetStateAPI,LatestExectuion
+from .views import WorkflowAPIView,GetWorkflowSteps,ExecuteWorkflow,GetStateAPI,LatestExectuion,ExecutionHistoryAPI
 
 router = DefaultRouter()
 router.register(r'workflows', WorkflowViewSet, basename='workflow')
@@ -13,4 +13,5 @@ urlpatterns = [
     path('execute-workflow/<uuid:workflow_id>/',ExecuteWorkflow.as_view()),
     path('get-state/<str:entity_type>/<str:id>',GetStateAPI.as_view()),
     path('latest-execution/<str:workflow_id>',LatestExectuion.as_view()),
+    path('execution-history/<str:workflow_id>',ExecutionHistoryAPI.as_view()),
 ]

@@ -12,12 +12,12 @@ function HomePage(){
                 Workflow Management
             </p>
             <div className='flex justify-center gap-4'>
-            <div className='btn-primary' onClick={() => navigate('/workflows')}>
-                Explore Workflow
-            </div>
-            <div className='btn-primary' onClick={() => navigate('/create')}>
-                Create Workflow
-            </div>
+                <div className='btn-primary' onClick={() => navigate('/workflows')}>
+                    Explore Workflow
+                </div>
+                <div className='btn-primary' onClick={() => navigate('/create')}>
+                    Create Workflow
+                </div>
             </div>
         </div>
         </div>
