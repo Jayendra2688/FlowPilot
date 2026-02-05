@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import WorkflowDetailsForm from '../components/workflow/WorkflowDetailsForm';
 
-function StepConfigure({stepData,id,onInputChange}){
-     
+function StepConfigure({stepData,onInputChange,expandStepData,handleExpandSteps}){
+    let step_id = stepData.step_id;
+    let isExpanded = expandStepData[step_id];
     return (<>
-         <div className="max-w-2xl mx-auto mt-8" id={id}>
-            <h1>Step {stepData.step_id}</h1>
+         <div className="max-w-2xl mx-auto mt-8">
+            
+            <div onClick={()=>handleExpandSteps(stepData.step_id)} className='flex justify-between items-center p-4 mb-2 bg-gray-300 border border-gray-300 rounded cursor-pointer hover:bg-gray-200'>
+                <h1 className='font-semibold'>Step {step_id}</h1>
+                 <span className="text-xl">
+                    {isExpanded ? "▼" : "▶"}
+                </span>
+            </div>
+            {isExpanded && (<>
             {/* Step Name */}
             <div className="mb-4">
                 <label className="block mb-2 font-semibold">Step Name</label>
                 <input
                 type="text"
                 value={stepData.name}
-                onChange={(e) => onInputChange(id,'name', e.target.value)}
+                onChange={(e) => onInputChange(step_id,'name', e.target.value)}
                 className="w-full p-2 border rounded"
                 placeholder="e.g., Read Excel Data"
                 />
@@ -24,7 +32,7 @@ function StepConfigure({stepData,id,onInputChange}){
                 <input
                 type="text"
                 value={stepData.type}
-                onChange={(e) => onInputChange(id,'type', e.target.value)}
+                onChange={(e) => onInputChange(step_id,'type', e.target.value)}
                 className="w-full p-2 border rounded"
                 placeholder="e.g., read_excel"
                 />
@@ -36,7 +44,7 @@ function StepConfigure({stepData,id,onInputChange}){
                 <input
                 type="text"
                 value={stepData.order}
-                onChange={(e) => onInputChange(id,'order', e.target.value)}
+                onChange={(e) => onInputChange(step_id,'order', e.target.value)}
                 className="w-full p-2 border rounded"
                 placeholder="e.g., 3"
                 />
@@ -47,7 +55,7 @@ function StepConfigure({stepData,id,onInputChange}){
                 <label className="block mb-2 font-semibold">Step Config</label>
                 <textarea
                 value={stepData.config}
-                onChange={(e) => onInputChange(id,'config', e.target.value)}
+                onChange={(e) => onInputChange(step_id,'config', e.target.value)}
                 className="w-full p-2 border rounded"
                 rows="3"
                 placeholder="{'phone':'+91899229310','sms':'+91982891021'}"
@@ -59,11 +67,13 @@ function StepConfigure({stepData,id,onInputChange}){
                 <label className="block mb-2 font-semibold">Step Depends On:</label>
                 <input
                 value={stepData.depends}
-                onChange={(e) => onInputChange(id,'depends', e.target.value)}
+                onChange={(e) => onInputChange(step_id,'depends', e.target.value)}
                 className="w-full p-2 border rounded"
                 placeholder="Eg: 1,3s"
                 />
             </div>
+            </>)}
+            
          </div>
 
     </>);
@@ -72,11 +82,10 @@ function StepConfigure({stepData,id,onInputChange}){
 function AddStep({handleClick}){
     <button onClick={() => handleClick()}>Add Step</button>
 }
-function WorkflowSteps({ formData,onInputChange}){
-    console.log("hrlloo");
+function WorkflowSteps({ formData,onInputChange,expandStepData,handleExpandSteps}){
     return (<>
         {formData.steps.map((step,id) => (
-            <StepConfigure stepData={step} id={id+1} onInputChange={onInputChange}/>
+            <StepConfigure key={step.step_id} stepData={step} onInputChange={onInputChange} expandStepData={expandStepData} handleExpandSteps={handleExpandSteps}/>
         ))}
     </>);
 }
@@ -98,6 +107,10 @@ const [formData, setFormData] = useState({
         },
     ],
 });
+
+const [expandSteps,setExpandSteps] = useState({
+    1:false
+})
 
 const [currentStep,setCurrentStep] = useState(1);
 
@@ -161,8 +174,9 @@ const handleStepConfig = (step_id,fieldName,value) =>{
 }
 
 const handleAddStep = () =>{
+    let new_step_id = formData.steps.length +1;
     const emptyStep = {
-        step_id:formData.steps.length +1,
+        step_id:new_step_id,
         name: "",
         type: "",
         order: "",
@@ -176,6 +190,18 @@ const handleAddStep = () =>{
             emptyStep
         ]
     })
+    setExpandSteps({
+        ...expandSteps,
+        [new_step_id]:false
+    })
+}
+
+const handleExpandSteps = (step_id) =>{
+    setExpandSteps(
+        {...expandSteps,
+            [step_id] : !expandSteps[step_id]
+        }
+    );
 }
 
 
@@ -194,7 +220,7 @@ return (
         </>)}
 
         {currentStep==2 && (<>
-         <WorkflowSteps formData={formData} onInputChange={handleStepConfig}/>
+         <WorkflowSteps formData={formData} onInputChange={handleStepConfig} expandStepData={expandSteps} handleExpandSteps={handleExpandSteps}/>
         </>)}
 
 
@@ -207,6 +233,10 @@ return (
         <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
           <p className="font-bold mb-2">Current State (for learning):</p>
           <pre>{JSON.stringify(formData, null, 3)}</pre>
+        </div>
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">Current State (for learning):</p>
+          <pre>{JSON.stringify(expandSteps, null, 3)}</pre>
         </div>
       </div>
 );
