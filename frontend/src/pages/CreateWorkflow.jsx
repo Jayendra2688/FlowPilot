@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import WorkflowDetailsForm from '../components/workflow/WorkflowDetailsForm';
 
-function StepConfigure({stepData,onInputChange,expandStepData,handleExpandSteps}){
+function StepConfigure({stepData,availableSteps,onInputChange,expandStepData,handleExpandSteps}){
     let step_id = stepData.step_id;
     let isExpanded = expandStepData[step_id];
+    
     return (<>
          <div className="max-w-2xl mx-auto mt-8">
             
@@ -65,12 +66,7 @@ function StepConfigure({stepData,onInputChange,expandStepData,handleExpandSteps}
             {/* Depends on */}
             <div className="mb-4">
                 <label className="block mb-2 font-semibold">Step Depends On:</label>
-                <input
-                value={stepData.depends}
-                onChange={(e) => onInputChange(step_id,'depends', e.target.value)}
-                className="w-full p-2 border rounded"
-                placeholder="Eg: 1,3s"
-                />
+                <select name="" id=""></select>
             </div>
             </>)}
             
@@ -82,11 +78,16 @@ function StepConfigure({stepData,onInputChange,expandStepData,handleExpandSteps}
 function AddStep({handleClick}){
     <button onClick={() => handleClick()}>Add Step</button>
 }
+function getAvailableSteps(formData,step_id){
+    let available_steps = formData.steps.filter(step => step.step_id<step_id).map(step => step.step_id);
+    return available_steps;
+}
 function WorkflowSteps({ formData,onInputChange,expandStepData,handleExpandSteps}){
     return (<>
-        {formData.steps.map((step,id) => (
-            <StepConfigure key={step.step_id} stepData={step} onInputChange={onInputChange} expandStepData={expandStepData} handleExpandSteps={handleExpandSteps}/>
-        ))}
+        {formData.steps.map((step,id) => {
+            let available_steps = getAvailableSteps(formData,step.step_id)
+            return <StepConfigure key={step.step_id} stepData={step} availableSteps ={available_steps} onInputChange={onInputChange} expandStepData={expandStepData} handleExpandSteps={handleExpandSteps}/>
+        })}
     </>);
 }
 function CreateWorkflow() {
@@ -103,7 +104,7 @@ const [formData, setFormData] = useState({
             type:"",
             order:"",
             config:"",
-            depends:""
+            depends:[]
         },
     ],
 });
@@ -181,7 +182,7 @@ const handleAddStep = () =>{
         type: "",
         order: "",
         config: "",
-        depends: ""
+        depends: []
     };
     setFormData({
         ...formData,

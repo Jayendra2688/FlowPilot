@@ -436,7 +436,182 @@ className="border border-gray-300 rounded rounded-lg"
 
 ---
 
-*To be continued in Phase 3...*
+---
+
+# Phase 3: Dependencies (Advanced State Management) 🚀 IN PROGRESS
+
+## 🎯 Goals for Phase 3
+
+### What We're Building:
+Currently, the "Depends On" field is a simple text input where users type "1,3". This is error-prone:
+- Users can type invalid step IDs
+- Users can make a step depend on itself
+- No validation or visual feedback
+
+**We'll transform it into:**
+1. **Multi-select dropdown** showing available steps
+2. **Validation rules** (can't depend on self, must be valid step)
+3. **Visual feedback** showing which steps are selected
+4. **Smart filtering** (only show steps that make sense as dependencies)
+
+### New Concepts You'll Learn:
+- Select/dropdown components in React
+- Array manipulation (adding/removing items)
+- Validation logic
+- Computed values from state
+- More complex conditional rendering
+
+---
+
+## 🤔 Phase 3 - Pre-Planning Questions
+
+Before we code, let's think through the architecture:
+
+### Question 1: Data Structure
+**Current:** `depends: ""` (string like "1,3")
+**Problem:** Hard to validate, parse, and display
+
+**Options:**
+- A) Keep it as string, parse when needed
+- B) Change to array: `depends: [1, 3]`
+- C) Change to array of objects: `depends: [{step_id: 1, name: "Step 1"}]`
+
+**🤔 What do YOU think is best and why?**
+
+### Question 2: UI Component
+How should users select dependencies?
+
+**Options:**
+- A) Multi-select dropdown (HTML `<select multiple>`)
+- B) Checkbox list (show all steps, check the ones you depend on)
+- C) Tag/chip selector (like email tags)
+
+**🤔 Which would give the best UX?**
+
+### Question 3: Validation Rules
+What should we prevent?
+
+- ❌ Can't depend on yourself (Step 3 can't depend on Step 3)
+- ❌ Can't depend on steps that don't exist yet
+- ❓ Should Step 2 be able to depend on Step 5? (future step)
+- ❓ Should we detect circular dependencies? (Step 1→2→3→1)
+
+**🤔 What rules make sense for YOUR use case?**
+
+---
+
+---
+
+## 📚 JavaScript Concepts: for loop vs .map() vs .filter()
+
+### The Mental Model - Ask "What is my goal?"
+```
+Goal                               → Use
+───────────────────────────────────────────────────
+Run code N times / complex logic   → for loop
+Transform EVERY item               → .map()
+Pick SOME items by condition       → .filter()
+Combine all items into one value   → .reduce()
+```
+
+### for loop - "Full control"
+```javascript
+// Use when: Need index, need to break early, complex multi-step logic
+for (let i = 0; i < steps.length; i++) {
+    if (steps[i].step_id === target) break; // can't break in map/filter
+}
+```
+
+### .map() - "Transform every item"
+```javascript
+// Input length === Output length (ALWAYS)
+// Use when: Convert every item into something else
+
+steps.map(step => step.step_id)        // objects → IDs:  [1, 2, 3]
+steps.map(step => <div>{step.name}</div>) // objects → JSX
+steps.map(step => `Step ${step.step_id}`) // objects → strings
+```
+
+### .filter() - "Pick only matching items"
+```javascript
+// Input length >= Output length (ALWAYS)
+// Use when: You want a SUBSET of the array
+
+steps.filter(step => step.step_id < 3)           // steps before step 3
+steps.filter(step => step.status === "done")      // only completed
+```
+
+### Chain them together! (Most powerful pattern)
+```javascript
+// "Give me previous steps rendered as <option> elements"
+steps
+  .filter(step => step.step_id < currentStepId)  // Step 1: pick subset
+  .map(step => (                                  // Step 2: transform each
+      <option key={step.step_id} value={step.step_id}>
+          Step {step.step_id}
+      </option>
+  ))
+```
+
+### Quick Decision Guide:
+```
+"Show all steps as cards"           → .map()
+"Only incomplete steps"             → .filter()
+"Get IDs from step objects"         → .map()
+"Steps before current"              → .filter()
+"Previous steps as <option>s"       → .filter() + .map() chained
+```
+
+---
+
+## 📚 Multi-Select in React
+
+### 3 Things to Remember:
+```
+1. Add `multiple` prop to <select>
+2. value must be Array of STRINGS   → [1,2].map(String) → ["1","2"]
+3. Use e.target.selectedOptions     → NOT e.target.value (only gives one!)
+```
+
+### Why String conversion?
+```javascript
+// HTML <option value> is always a STRING
+// Your state has NUMBERS: depends = [1, 3]
+
+// React matches value prop against option values:
+value={["1","3"]}  +  <option value="1"> → ✅ matches (selected!)
+value={[1, 3]}     +  <option value="1"> → ❌ no match! (1 !== "1")
+
+// So always convert:
+[1, 3].map(String)  // → ["1", "3"]  when passing to value prop
+Number("1")         // → 1           when reading back from onChange
+```
+
+### Full Multi-Select Pattern:
+```javascript
+<select
+    multiple
+    value={stepData.depends.map(String)}       // [1,3] → ["1","3"]
+    onChange={(e) => {
+        const selectedIds = Array.from(e.target.selectedOptions)
+            .map(option => Number(option.value)); // ["1","3"] → [1,3]
+        onInputChange(step_id, 'depends', selectedIds);
+    }}
+    className="w-full p-2 border rounded"
+    size={availableSteps.length || 1}          // show all without scroll
+>
+    {availableSteps.map(step => (
+        <option key={step.step_id} value={step.step_id}>
+            Step {step.step_id} {step.name ? `- ${step.name}` : ""}
+        </option>
+    ))}
+</select>
+<p className="text-sm text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+```
+
+---
+
+*Think about these questions and share your answers. Then we'll start implementing!*
 
 ---
 
