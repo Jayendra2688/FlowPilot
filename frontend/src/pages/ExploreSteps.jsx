@@ -25,18 +25,18 @@ function getStepColor(status){
 function readyToRun(stepStatusMap){
     if(!stepStatusMap) return false;
     if(Object.keys(stepStatusMap).length==0) return true;
-    if(Object.values(stepStatusMap).every(status => status==="completed")) return true;
+    if(Object.values(stepStatusMap).every(status => status==="completed" || status=="failed")) return true;
     return false;
 
 }
 
-function Execute({workflow_id,setWorkflowExeId,setStepExeMap,stepStatusMap}){
+function Execute({workflow_id,setworkflowExeId,setStepExeMap,stepStatusMap}){
     
     async function handleClink(workflow_id) {
-        if(!readyToRun(stepStatusMap)){
-            alert("Not Ready To Run!!");
-            return;
-        }
+        // if(!readyToRun(stepStatusMap)){
+        //     alert("Not Ready To Run!!");
+        //     return;
+        // }
         try{
             const res = await fetch(`http://127.0.0.1:8001/api/execute-workflow/${workflow_id}/`, {
                             method: "POST",
@@ -51,7 +51,7 @@ function Execute({workflow_id,setWorkflowExeId,setStepExeMap,stepStatusMap}){
                 throw new Error(`Request failed Error HTTP${res.status}`);
             }
             const body = await res.json();
-            setWorkflowExeId(body["result"]["workflow"]);
+            setworkflowExeId(body["result"]["workflow"]);
             setStepExeMap(body["result"]["steps"]);
         }catch (error){
             console.error("failed:",error);
@@ -67,7 +67,7 @@ function Execute({workflow_id,setWorkflowExeId,setStepExeMap,stepStatusMap}){
 function ExecutionHistory({workflow_id,setExeHistory,setDrawerOpen,drawerOpen}){
     async function getHistory(workflow_id) {
         try{
-            const res = await fetch(`http://127.0.0.1:8001/api/execution-history/${workflow_id}`);
+            const res = await fetch(`http://127.0.0.1:8001/api/execution-history/${workflow_id}/`);
             if(!res.ok){
                 throw new Error(`Request failed Error HTTP${res.status}`);
             }
@@ -119,7 +119,7 @@ export default function ExploreSteps(){
     console.log("workflow_id is ",workflow_id);
 
     const [data,setData] = useState(null);
-    const [worflowExeId,setWorkflowExeId] = useState(null);
+    const [workflowExeId,setworkflowExeId] = useState(null);
     const [workflowState,setWorkflowState] = useState(null);
     const [stepExeMap,setStepExeMap] = useState({});
     const [stepStatusMap,setStepStatusMap] = useState(null);
@@ -128,73 +128,93 @@ export default function ExploreSteps(){
 
 
     
-    useEffect(function(){
-        if(!worflowExeId) return;
-        async function pollWorflow() {
-            try{
-                const workflow_exe_id = worflowExeId;
-                const res = await fetch(`http://127.0.0.1:8001/api/get-state/workflow/${workflow_exe_id}`);
-                if(!res.ok){
-                    throw new Error(`HTTP ${res.status}`);
-                }
-                const body = await res.json();
-                // console.log("workflow_status",body["entity_status"]);
-                setWorkflowState(body["entity_status"]);
-            }catch(err){
-                console.log("Error ",err);
+    useEffect(() => {
+    if (!workflowExeId) return;
+
+    async function pollWorkflow() {
+        try {
+            const res = await fetch(
+                `/api/get-state/workflow/${workflowExeId}/`
+            );
+
+            const body = await res.json();
+
+            setWorkflowState(body.entity_status);
+            setStepStatusMap(body.step_status_map);
+
+            if (
+                body.entity_status === "completed" ||
+                body.entity_status === "failed"
+            ) {
+                clearInterval(intervalId);
             }
+
+        } catch (err) {
+            console.log(err);
         }
-        pollWorflow();
-        const id = setInterval(pollWorflow,11500);
+    }
 
-        return ()=>{
-            clearInterval(id);
-        }
-    },[worflowExeId]);
+    pollWorkflow();
 
-    useEffect(function(){
-        if (!stepExeMap || Object.keys(stepExeMap).length === 0) return;
+    const intervalId = setInterval(pollWorkflow, 3000);
 
+    return () => clearInterval(intervalId);
 
-        async function pollSteps(){
-            try{
-                const results = await Promise.all(
-                    Object.entries(stepExeMap).map(
-                        async ([stepId,taskExeId]) => {
-                            console.log("HI");
-                            const res = await fetch(`http://127.0.0.1:8001/api/get-state/step/${taskExeId}`);
-                            if(!res.ok){
-                                throw new Error(`HTTP ${res.status}`);
-                            }
-                            const body = await res.json();
-                            
-                            const result = {stepId:stepId,stepState:body["entity_status"]};
-                            return result;
-                        }
-                    )
-                );
+}, [workflowExeId]);
+function allStepsFinished(stepStatusMap) {
+    if (!stepStatusMap) return false;
 
-                setStepStatusMap((prev) => {
-                    const next = {...prev};
-                    results.forEach(({stepId,stepState}) => {
-                        next[stepId] = stepState;
-                    })
-                    return next;
+    return Object.values(stepStatusMap).every(
+        status => status === "completed" || status === "failed"
+    );
+}
+useEffect(function () {
+    if (!stepExeMap || Object.keys(stepExeMap).length === 0) return;
+
+    let id;
+
+    async function pollSteps() {
+        try {
+            const results = await Promise.all(
+                Object.entries(stepExeMap).map(async ([stepId, taskExeId]) => {
+
+                    const res = await fetch(`http://127.0.0.1:8001/api/get-state/step/${taskExeId}/`);
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+
+                    const body = await res.json();
+                    return { stepId, stepState: body.entity_status };
+                })
+            );
+
+            setStepStatusMap(prev => {
+                const next = { ...(prev || {}) };
+
+                results.forEach(({ stepId, stepState }) => {
+                    next[stepId] = stepState;
                 });
-            }catch(error){
-                console.log("Error ",error);
-            }
 
-        };
+                // stop polling if all finished
+                if (allStepsFinished(next)) {
+                    clearInterval(id);
+                }
 
-        pollSteps();
+                return next;
+            });
 
-        const id = setInterval(pollSteps,250);
-        return ()=>{
-            clearInterval(id);
-        };
+        } catch (error) {
+            console.log("Error", error);
+        }
+    }
 
-    },[stepExeMap]);
+    pollSteps();
+
+    id = setInterval(pollSteps, 1000);
+
+    return () => clearInterval(id);
+
+}, [stepExeMap]);
 
     useEffect(function(){
 
@@ -212,7 +232,7 @@ export default function ExploreSteps(){
         }
         async function fetchLatestExectution() {
             try{
-                const res = await fetch(`http://127.0.0.1:8001/api/latest-execution/${workflow_id}`);
+                const res = await fetch(`http://127.0.0.1:8001/api/latest-execution/${workflow_id}/`);
                 if(!res.ok) throw Error(`HTTP ${res.status}`);
                 const body = await res.json();
                 if(body["result"]){
@@ -246,15 +266,47 @@ export default function ExploreSteps(){
                 ))}
             </div>
             <div className="flex justify-center items-center gap-10 p-5">
-                <Execute workflow_id={workflow_id} setWorkflowExeId = {setWorkflowExeId} setStepExeMap = {setStepExeMap} stepStatusMap = {stepStatusMap}/>
+                <Execute workflow_id={workflow_id} setworkflowExeId = {setworkflowExeId} setStepExeMap = {setStepExeMap} stepStatusMap = {stepStatusMap}/>
                 <ExecutionHistory workflow_id={workflow_id} setExeHistory={setExeHistory} setDrawerOpen={setDrawerOpen} drawerOpen={drawerOpen}/>
             </div>
+            {/* Debug: Show current state */}
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">data (for learning):</p>
+          <pre>{JSON.stringify(data, null, 3)}</pre>
+        </div>
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">workflowExeId (for learning):</p>
+          <pre>{JSON.stringify(workflowExeId, null, 3)}</pre>
+        </div>
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">workflowState (for learning):</p>
+          <pre>{JSON.stringify(workflowState, null, 3)}</pre>
+        </div>
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">stepExeMap (for learning):</p>
+          <pre>{JSON.stringify(stepExeMap, null, 3)}</pre>
+        </div>
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">stepStatusMap (for learning):</p>
+          <pre>{JSON.stringify(stepStatusMap, null, 3)}</pre>
+        </div>
         </div>
        {<div
             className={`flex justify-center items-center transition-all duration-500 ${drawerOpen ? "w-1/4" : "w-0 hidden" }`}
         > 
             <HistoryTable exeHistory={exeHistory}/>
         </div>}
+
+        
+        {/* <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">stepExeMap (for learning):</p>
+          <pre>{JSON.stringify(stepExeMap, null, 3)}</pre>
+        </div>
+        <div className="mt-8 p-4 bg-gray-100 rounded max-w-2xl mx-auto">
+          <p className="font-bold mb-2">stepExeMap (for learning):</p>
+          <pre>{JSON.stringify(stepExeMap, null, 3)}</pre>
+        </div> */}
+
         </div>
     )
 

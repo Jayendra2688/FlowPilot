@@ -221,3 +221,7 @@ if DEBUG:
 
 USE_TZ = True
 TIME_ZONE = "UTC"
+
+# Email — prints to terminal so you can see it working
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'flowpilot@localhost'

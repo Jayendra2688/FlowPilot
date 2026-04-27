@@ -611,7 +611,128 @@ Number("1")         // → 1           when reading back from onChange
 
 ---
 
-*Think about these questions and share your answers. Then we'll start implementing!*
+### Student's Decisions:
+- **Data Structure:** B - Array `depends: [1, 3]`
+- **UI Component:** Started with multi-select, switched to Checkboxes (better UX)
+- **Validation:** Can't depend on self, can't depend on future steps, circular deps → backend
+
+### Bugs Found & Fixed:
+1. `getAvailableSteps` - used for loop with wrong syntax → switched to `.filter()`
+2. `step_id` undefined in `WorkflowSteps` → used `step.step_id` from map
+3. `depends: ""` in handleAddStep → changed to `depends: []`
+4. `value={availableSteps.map(...)}` → fixed to `value={stepData.depends.map(String)}`
+5. `"depends_on"` field name → fixed to `"depends"`
+6. `<select multiple>` ugly UI → switched to checkboxes
+
+### Key Pattern: Checkbox Array State
+```javascript
+// checked: Is this step in the depends array?
+checked={stepData.depends.includes(step.step_id)}
+
+// onChange: Add or remove from array
+const newDepends = e.target.checked
+    ? [...stepData.depends, step.step_id]      // Add
+    : stepData.depends.filter(id => id !== step.step_id);  // Remove
+onInputChange(step_id, 'depends', newDepends);
+```
+
+### Key Pattern: Conditional Rendering for Empty States
+```javascript
+// Only show "Depends On" if there are steps to depend on
+{availableSteps.length > 0 && (
+    <div>...</div>
+)}
+```
+
+## ✅ Phase 3 COMPLETED!
+
+---
+
+## 📊 Progress Overview
+
+```
+Phase 1 ✅ Workflow Details Form (controlled components, state management)
+Phase 2 ✅ Step Wizard + Collapsible UI (array state, expand/collapse)
+Phase 3 ✅ Dependencies (filter/map, checkboxes, array add/remove)
+Phase 4 ✅ Validation (before submit)
+Phase 5 ⏳ Submit to Backend API (fetch/axios, async/await)
+```
+
+---
+
+## Phase 4: Validation ✅ COMPLETED
+
+### Key Concepts Learned:
+
+**1. Separate Error State from Form Data**
+- `formData` = what user entered (data)
+- `errors` = what's wrong (UI feedback)
+- Never mix them - you'd accidentally send errors to backend
+
+**2. Validation Pattern**
+```javascript
+function isEmpty(fieldName, newErrors){
+    if(formData[fieldName].trim() === ''){
+        newErrors[fieldName] = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
+        return true;
+    }
+    newErrors[fieldName] = "";
+    return false;
+}
+```
+
+**3. Clear Errors on Typing (UX)**
+```javascript
+// Step 1 fields
+const handleInputChange = (fieldName, value) => {
+    if(errors[fieldName]){
+        setErrors({...errors, [fieldName]: ""});
+    }
+    // ... rest of logic
+};
+
+// Step 2 fields (nested)
+const handleStepConfig = (step_id, fieldName, value) => {
+    if(errors.steps[step_id][fieldName]){
+        setErrors({
+            ...errors,
+            steps:{...errors.steps, [step_id]:{...errors.steps[step_id], [fieldName]:""}}
+        })
+    }
+    // ... rest of logic
+};
+```
+
+**4. Per-Step Validation with Auto-Expand**
+```javascript
+function validateStep2(){
+    // Loop all steps, check all required fields
+    // Auto-expand steps that have errors (great UX!)
+    if(!stepValid){
+        setExpandSteps({...expandSteps, [step_ids[i]]: true})
+    }
+}
+```
+
+**5. `&&=` Operator**
+```javascript
+isValid &&= fieldValid;  // Same as: isValid = isValid && fieldValid
+```
+
+**6. Optional Chaining for Error Display**
+```javascript
+{stepErrors?.name && (
+    <p className="text-red-500 text-sm mt-1">{stepErrors.name}</p>
+)}
+// ?. prevents crash if stepErrors is undefined
+```
+
+### Bugs Found & Fixed:
+1. `handleNext` double execution → `else if`
+2. `isEmpty` hardcoded "Name" → dynamic `fieldName`
+3. `setErrros` typo → `setErrors`
+4. `step_id` undefined in handleAddStep → `new_step_id`
+5. `validateStep1` short-circuit → validate ALL fields independently
 
 ---
 

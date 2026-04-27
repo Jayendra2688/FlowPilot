@@ -284,7 +284,8 @@ class TaskExecution(models.Model):
     # Same status choices as WorkflowExecution
     STATUS_CHOICES = [
         ('pending', 'Pending'),
-        ('running', 'Running'), 
+        ('queued', 'Queued'),       # Claimed by trigger_next_steps, waiting for worker
+        ('running', 'Running'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
@@ -312,17 +313,12 @@ class TaskExecution(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     
-    # Task-specific input (can be different from workflow input)
+    # Runtime input data pushed into this step (e.g. OTP, webhook payload, gate approval)
     input_data = models.JSONField(default=dict)
-    # Example: {"phone": "+91123", "message": "Your OTP is {otp}"}
-    
+
     # Task output/result
     result = models.JSONField(null=True, blank=True)
     # Example: {"otp_sent": True, "sms_id": "msg_12345", "cost": 0.05}
-    
-    # Error handling
-    error_message = models.TextField(blank=True)
-    error_traceback = models.TextField(blank=True)  # Full Python traceback for debugging
     
     # Retry tracking
     retry_count = models.IntegerField(default=0)
@@ -373,15 +369,13 @@ class TaskExecution(models.Model):
     
     def mark_as_failed(self, error_message, traceback=None):
         """Mark task as failed"""
+        TaskExeErrorTraceback.objects.create(task_exe=self,error_message=error_message,error_traceback=traceback)
         self.status = 'failed'
-        self.completed_at = timezone.now()
-        self.error_message = error_message
-        if traceback:
-            self.error_traceback = traceback
-        self.save(update_fields=['status', 'completed_at', 'error_message', 'error_traceback'])
-    
-    def schedule_retry(self):
+        self.save(update_fields=['status'])
+       
+    def schedule_retry(self,error_message,traceback=None):
         """Schedule this task for retry"""
+        TaskExeErrorTraceback.objects.create(task_exe=self,error_message=error_message,error_traceback=traceback)
         if self.retry_count >= self.step.max_retries:
             self.mark_as_failed(f"Max retries ({self.step.max_retries}) exceeded")
             return False
@@ -391,6 +385,7 @@ class TaskExecution(models.Model):
         self.next_retry_at = timezone.now() + timezone.timedelta(seconds=delay_seconds)
         self.retry_count += 1
         self.status = 'retrying'
+        print("Retru")
         self.save(update_fields=['next_retry_at', 'retry_count', 'status'])
         return True
     
@@ -407,3 +402,10 @@ class TaskExecution(models.Model):
         )
         
         return self.step.can_execute(completed_steps)
+    
+    
+class TaskExeErrorTraceback(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    error_message = models.TextField(blank=True)
+    error_traceback = models.TextField(blank=True) 
+    task_exe = models.ForeignKey(TaskExecution,on_delete=models.CASCADE,related_name='error_tracebacks')

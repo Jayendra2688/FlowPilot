@@ -9,6 +9,7 @@ import pytz
 from .models import Workflow,WorkflowExecution,TaskExecution
 from .serializers import WorkflowSerializer,ExecuteSerializer
 from .executor import execute_workflow
+from .tasks import task_registry
 from django.views.generic import TemplateView
 from rest_framework.views import APIView
 from .orchestrator import Orchestrator
@@ -107,6 +108,12 @@ class LatestExectuion(APIView):
             return Response({"message":"success","result":result})
         
         
+class StepTypesAPI(APIView):
+
+    def get(self, request):
+        return Response(task_registry.get_schema())
+
+
 class ExecutionHistoryAPI(APIView):
     
     def get(self,reqeust,*args,**kwargs):

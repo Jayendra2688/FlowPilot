@@ -1,7 +1,7 @@
 // WorkflowDetailsForm.jsx - Presentational Component
 // Receives data and callbacks via props, renders UI
 
-function WorkflowDetailsForm({ formData, onInputChange, onTriggerConfigChange }) {
+function WorkflowDetailsForm({ formData, onInputChange, onTriggerConfigChange,errors }) {
   return (
     <div className="max-w-2xl mx-auto mt-8">
       {/* Workflow Name */}
@@ -14,6 +14,9 @@ function WorkflowDetailsForm({ formData, onInputChange, onTriggerConfigChange })
           className="w-full p-2 border rounded"
           placeholder="e.g., Patient Onboarding"
         />
+        {errors?.name && (
+          <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+        )}
       </div>
 
       {/* Description */}
@@ -26,6 +29,9 @@ function WorkflowDetailsForm({ formData, onInputChange, onTriggerConfigChange })
           rows="3"
           placeholder="What does this workflow do?"
         />
+        {errors?.description && (
+          <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+        )}
       </div>
 
       {/* Trigger Type */}
@@ -40,6 +46,9 @@ function WorkflowDetailsForm({ formData, onInputChange, onTriggerConfigChange })
           <option value="webhook">Webhook</option>
           <option value="schedule">Schedule</option>
         </select>
+        {errors?.trigger_type && (
+          <p className="text-red-500 text-sm mt-1">{errors.trigger_type}</p>
+        )}
       </div>
 
       {/* Trigger Config: Webhook */}

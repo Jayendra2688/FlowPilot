@@ -12,6 +12,7 @@ Key Concepts:
 """
 
 import logging
+import re
 import time
 import traceback
 from typing import Dict, Any, Optional
@@ -30,39 +31,92 @@ logger = logging.getLogger(__name__)
 
 class TaskRegistry:
     """
-    Central registry for all workflow tasks
-    
-    This allows dynamic task discovery and execution
+    Central registry for all workflow tasks.
+    Stores task function, label, and output_schema per task type.
     """
     _tasks = {}
-    
+
     @classmethod
-    def register(cls, task_type: str):
-        """Decorator to register a task function"""
+    def register(cls, task_type: str, label: str = '', output_schema: list = None):
+        """Decorator to register a task function with its metadata"""
         def decorator(func):
-            cls._tasks[task_type] = func
+            cls._tasks[task_type] = {
+                'func': func,
+                'label': label or task_type.replace('_', ' ').title(),
+                'output_schema': output_schema or [],
+            }
             logger.info(f"Registered task: {task_type}")
             return func
         return decorator
-    
+
     @classmethod
     def get_task(cls, task_type: str):
         """Get a task function by type"""
-        return cls._tasks.get(task_type)
-    
+        entry = cls._tasks.get(task_type)
+        return entry['func'] if entry else None
+
+    @classmethod
+    def get_schema(cls):
+        """Return metadata for all registered task types (for API)"""
+        return {
+            task_type: {
+                'label': entry['label'],
+                'output_schema': entry['output_schema'],
+            }
+            for task_type, entry in cls._tasks.items()
+        }
+
     @classmethod
     def list_tasks(cls):
-        """List all registered tasks"""
+        """List all registered task type keys"""
         return list(cls._tasks.keys())
 
 # Global task registry instance
 task_registry = TaskRegistry()
 
 # ===========================
+# TEMPLATE RESOLUTION
+# ===========================
+
+def resolve_config(config, workflow_execution):
+    """
+    Scans every string value in config for {{step_X.field.nested}} templates
+    and replaces them with the actual value from that step's result.
+    """
+    def replace_func(match):
+        step_number = match.group(1)        # "1"
+        path = match.group(2)               # "response_data.name"
+
+        source_task = workflow_execution.task_executions.get(
+            step__step_order=int(step_number)
+        )
+
+        keys = path.split(".")
+        value = source_task.result or {}
+        for key in keys:
+            if not isinstance(value, dict):
+                value = None
+                break
+            value = value.get(key)
+
+        return str(value) if value is not None else ""
+
+    resolved = {}
+    for key, value in config.items():
+        if isinstance(value, str):
+            value = re.sub(
+                r'\{\{step_(\d+)\.([^}]+)\}\}',
+                replace_func,
+                value
+            )
+        resolved[key] = value
+    return resolved
+
+# ===========================
 # CORE EXECUTION TASK
 # ===========================
 
-@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3, 'countdown': 60})
+@shared_task(bind=True)
 def execute_workflow_task(self, task_execution_id: str):
     print("HelloExe")
     """
@@ -95,8 +149,11 @@ def execute_workflow_task(self, task_execution_id: str):
         if not task_func:
             raise ValueError(f"Unknown task type: {step.step_type}")
         
+        ### Resolve {{step_X.field}} templates in config for all step types
+        config = resolve_config(task_execution.step.config, task_execution.workflow_execution)
+
         ### Execute the actual task function
-        result = task_func(task_execution.input_data)
+        result = task_func(config)
         
         # Mark task as completed
         task_execution.mark_as_completed(result=result)
@@ -115,15 +172,18 @@ def execute_workflow_task(self, task_execution_id: str):
         logger.error(f"Task execution failed: {task_execution_id} - {error_msg}")
         
         if task_execution:
+            print("heel1")
             # Check if we should retry
             if task_execution.retry_count < task_execution.step.max_retries:
+                print("heel2")
                 # Schedule retry
-                task_execution.schedule_retry()
+                task_execution.schedule_retry(error_msg,error_traceback)
                 logger.info(f"Scheduled retry for task: {task_execution_id}")
                 
                 # Re-raise to trigger Celery retry
-                raise self.retry(exc=exc, countdown=task_execution.step.retry_delay_seconds)
+                raise self.retry(exc=exc, eta=task_execution.next_retry_at)
             else:
+                print("heel3")
                 # Mark as permanently failed
                 task_execution.mark_as_failed(error_msg, error_traceback)
                 
@@ -140,25 +200,39 @@ def execute_workflow_task(self, task_execution_id: str):
 @shared_task
 def trigger_next_steps(workflow_execution_id: str):
     """
-    Check and trigger any steps that are now ready to execute
-    
-    This runs after each task completion to see if new tasks can start
+    Check and trigger any steps that are now ready to execute.
+
+    Uses pessimistic locking (select_for_update + skip_locked) to prevent
+    two workers from queuing the same step when they both complete a dependency
+    at the same time.
     """
     try:
         workflow_execution = WorkflowExecution.objects.get(id=workflow_execution_id)
-        
-        # Get all pending task executions
+
         pending_tasks = workflow_execution.task_executions.filter(status='pending')
-        
+
         for task_exec in pending_tasks:
-            if task_exec.is_ready_for_execution():
+            if not task_exec.is_ready_for_execution():
+                continue
+
+            # Atomic claim: lock the row and flip status to 'queued'.
+            # skip_locked=True means if another worker already locked this row,
+            # we skip it immediately instead of waiting.
+            # Only the worker that gets claimed=1 will queue the Celery task.
+            claimed = (
+                    TaskExecution.objects
+                    .filter(id=task_exec.id, status='pending')
+                    .update(status='queued')
+                )
+
+            if claimed:
                 logger.info(f"Triggering next step: {task_exec.step.name}")
                 execute_workflow_task.delay(str(task_exec.id))
-        
-        # Check if workflow is complete
+
+        # Check if workflow is complete (re-fetch to get latest statuses)
         all_tasks = workflow_execution.task_executions.all()
-        if all(task.status in ['completed', 'failed', 'skipped'] for task in all_tasks):
-            # All tasks are done
+        terminal_statuses = {'completed', 'failed', 'skipped'}
+        if all(task.status in terminal_statuses for task in all_tasks):
             failed_tasks = all_tasks.filter(status='failed')
             if failed_tasks.exists():
                 workflow_execution.mark_as_failed(
@@ -166,275 +240,92 @@ def trigger_next_steps(workflow_execution_id: str):
                     failed_step=failed_tasks.first().step
                 )
             else:
-                # All tasks completed successfully
                 workflow_execution.mark_as_completed()
-                
+
     except Exception as exc:
         logger.error(f"Error triggering next steps: {exc}")
 
 # ===========================
-# SPECIFIC TASK IMPLEMENTATIONS
+# TASK IMPLEMENTATIONS
 # ===========================
 
-@task_registry.register('send_sms')
-def send_sms_task(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Send SMS using configured SMS service
-    
-    Args:
-        config: Task configuration containing phone number and message
-        
-    Returns:
-        dict: Result with SMS ID and delivery status
-    """
-    # phone = config.get('phone')
-    # message = config.get('message')
-    
-    # if not phone or not message:
-    #     raise ValueError("SMS task requires 'phone' and 'message' in config")
-    
-    # logger.info(f"Sending SMS to {phone}: {message}")
-    
-    # # Simulate SMS sending (replace with actual SMS service integration)
-    # time.sleep(2)  # Simulate network delay
-    
-    # # TODO: Integrate with actual SMS service (Twilio, AWS SNS, etc.)
-    # sms_id = f"sms_{int(time.time())}"
-    
-    # return {
-    #     'sms_sent': True,
-    #     'sms_id': sms_id,
-    #     'phone': phone,
-    #     'message': message,
-    #     'sent_at': timezone.now().isoformat(),
-    #     'cost': 0.05  # Mock cost
-    # }
-    print("send_sms_bro")
-
-@task_registry.register('send_email')
-def send_email_task(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Send email using configured email service
-    
-    Args:
-        config: Task configuration containing email, subject, and content
-        
-    Returns:
-        dict: Result with email delivery status
-    """
-    # email = config.get('email')
-    # subject = config.get('subject', 'FlowPilot Notification')
-    # content = config.get('content') or config.get('message')
-    # template = config.get('template')
-    
-    # if not email:
-    #     raise ValueError("Email task requires 'email' in config")
-    
-    # if not content and not template:
-    #     raise ValueError("Email task requires 'content' or 'template' in config")
-    
-    # logger.info(f"Sending email to {email}: {subject}")
-    
-    # # Simulate email sending
-    # time.sleep(1)
-    
-    # # TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
-    
-    # return {
-    #     'email_sent': True,
-    #     'email': email,
-    #     'subject': subject,
-    #     'sent_at': timezone.now().isoformat(),
-    #     'message_id': f"email_{int(time.time())}"
-    # }
-    print("send_email_bro")
-
-@task_registry.register('create_patient')
-def create_patient_task(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Create patient record in the system
-    
-    Args:
-        config: Patient information (name, phone, email, etc.)
-        
-    Returns:
-        dict: Created patient information with ID
-    """
-    # name = config.get('name')
-    # phone = config.get('phone')
-    # email = config.get('email')
-    
-    # if not name:
-    #     raise ValueError("Patient creation requires 'name' in config")
-    
-    # logger.info(f"Creating patient record for {name}")
-    
-    # # Simulate database operation
-    # time.sleep(1)
-    
-    # # TODO: Integrate with actual patient management system
-    # patient_id = int(time.time())  # Mock patient ID
-    
-    # return {
-    #     'patient_created': True,
-    #     'patient_id': patient_id,
-    #     'name': name,
-    #     'phone': phone,
-    #     'email': email,
-    #     'created_at': timezone.now().isoformat()
-    # }
-    print("create_patient_bro")
-    
-
-@task_registry.register('http_request')
+@task_registry.register('http_request', label='HTTP Request', output_schema=['status_code', 'response_data', 'duration_ms'])
 def http_request_task(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Make HTTP request to external service
-    
-    Args:
-        config: HTTP request configuration (url, method, headers, data)
-        
-    Returns:
-        dict: HTTP response information
-    """
-    import requests
-    
     url = config.get('url')
     method = config.get('method', 'GET').upper()
-    headers = config.get('headers', {})
-    data = config.get('data')
-    timeout = config.get('timeout', 30)
-    
-    if not url:
-        raise ValueError("HTTP request requires 'url' in config")
-    
-    logger.info(f"Making {method} request to {url}")
-    
-    try:
-        response = requests.request(
-            method=method,
-            url=url,
-            headers=headers,
-            json=data if data else None,
-            timeout=timeout
-        )
-        
-        return {
-            'request_completed': True,
-            'status_code': response.status_code,
-            'url': url,
-            'method': method,
-            'response_data': response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
-            'response_headers': dict(response.headers),
-            'duration_ms': response.elapsed.total_seconds() * 1000
-        }
-        
-    except requests.RequestException as e:
-        raise ValueError(f"HTTP request failed: {str(e)}")
+    body = config.get('body')
 
-@task_registry.register('delay')
+    if not url:
+        raise ValueError("http_request requires 'url' in config")
+
+    logger.info(f"Making {method} request to {url}")
+
+    response = requests.request(
+        method=method,
+        url=url,
+        json=body if body else None,
+        timeout=30
+    )
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        response_data = response.text
+
+    return {
+        'status_code': response.status_code,
+        'response_data': response_data,
+        'duration_ms': response.elapsed.total_seconds() * 1000
+    }
+
+
+@task_registry.register('send_email', label='Send Email', output_schema=['email_sent', 'to', 'subject', 'sent_at'])
+def send_email_task(config: Dict[str, Any]) -> Dict[str, Any]:
+    from django.core.mail import send_mail
+
+    to = config.get('to')
+    subject = config.get('subject')
+    body = config.get('body', '')
+
+    if not to or not subject:
+        raise ValueError("send_email requires 'to' and 'subject' in config")
+
+    logger.info(f"Sending email to {to}: {subject}")
+
+    send_mail(
+        subject=subject,
+        message=body,
+        from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
+        recipient_list=[to],
+        fail_silently=False,
+    )
+
+    return {
+        'email_sent': True,
+        'to': to,
+        'subject': subject,
+        'sent_at': timezone.now().isoformat(),
+    }
+
+
+@task_registry.register('delay', label='Delay', output_schema=['delay_completed', 'delayed_seconds', 'completed_at'])
 def delay_task(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Simple delay/wait task
-    
-    Args:
-        config: Configuration with 'seconds' to wait
-        
-    Returns:
-        dict: Delay completion information
-    """
     seconds = config.get('seconds', 1)
-    
+
     if not isinstance(seconds, (int, float)) or seconds < 0:
-        raise ValueError("Delay task requires positive 'seconds' value")
-    
+        raise ValueError("delay requires a positive 'seconds' value")
+
     logger.info(f"Delaying for {seconds} seconds")
-    
     time.sleep(seconds)
-    
+
     return {
         'delay_completed': True,
         'delayed_seconds': seconds,
         'completed_at': timezone.now().isoformat()
     }
 
-@task_registry.register('display_msg')
-def display_testing(input_data):
-    time.sleep(2)
-    msg = input_data.get("message","empty")
-    print(f"***{msg}***")
-    
+
+
+
 # Log all registered tasks on module load
 logger.info(f"Registered tasks: {task_registry.list_tasks()}")
-
-def get_response(res: requests.Response):
-    result = {}
-
-    if res.ok:
-        try:
-            data = res.json()
-        except ValueError:
-            data = res.text
-
-        result["status"] = "Success"
-        result["data"] = data
-        return result
-
-    # Error case
-    try:
-        error = res.json()
-    except ValueError:
-        error = res.text
-
-    result["status"] = "Failed"
-    result["status_code"] = res.status_code
-    result["error"] = error
-    return result
-
-
-@task_registry.register('api_call')
-def fetch_from_api(input_data : dict):
-    if "url" not in input_data:
-        return {
-            "status":"Failed",
-            "message":"Not found url"
-        }
-    if "method" not in input_data:
-        return {
-            "status":"Failed",
-            "message":"Not found Api Method"
-        }
-    url = input_data["method"]
-    res = {}
-    if input_data["method"] == "GET":
-        params = input_data.get("params",{})
-        headers = input_data.get("headers",{})
-        res = requests.get(url=url,params=params,headers=headers)
-        res = get_response(res)
-    elif input_data["method"]=="POST":
-        payload = input_data.get("payload",{})
-        headers = input_data.get("headers",{})
-        res = requests.post(url=url,payload=payload,headers=headers)
-        res = get_response(res)
-    return res
-
-
-@task_registry.register('get_to_do_title')
-def get_todo_title(input_data : dict):
-    
-    if not title is None:
-        title = input_data.get("body",{}).get("title",None)
-        if not title is None:
-            return {
-                "status":"Success",
-                "title" : title
-            }
-        else:
-            return {
-                "message"
-            }
-        
-from .send_otp import send_otp   
-@task_registry.register('send_test_otp')
-def send_test_otp(input_data : dict):
-    send_otp("6303827428")
